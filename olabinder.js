@@ -13,7 +13,7 @@ var Binder = function (base) {
     const common = {
         // makes string ready to be attribute
         string_to_attribute: (...args) => {
-            key = args.join('-')
+            let key = args.join('-')
             key = key.replace(/^\$./, '')
             key = key.replace(/[\._]/g, '-')
             key = key.replace(/[\[\]\']/, '-')
@@ -71,7 +71,7 @@ var Binder = function (base) {
                 )
             }
 
-            if (!value.trim()) return
+            if (!value.trim()) return ''
 
             if (regex.moustaches(value)) {
                 return regex.moustaches(value,
@@ -88,7 +88,7 @@ var Binder = function (base) {
                 element.setAttribute(attr.name, update_model(attr.value))
             }
         )
-        element.childNodes.forEach(node => {
+        Array.from(element.childNodes).forEach(node => {
             if (node.nodeName == '#comment') return
             if (node.nodeName == '#text') {
                 // replace model in text nodes
@@ -109,7 +109,7 @@ var Binder = function (base) {
 
             el(element).reset()
 
-            element.childNodes.forEach(node => {
+            Array.from(element.childNodes).forEach(node => {
                 if (node.nodeName == '#comment') return
                 if (node.nodeName == '#text') {
                     node.nodeValue = regex.unquoted_moustaches(
@@ -155,7 +155,7 @@ var Binder = function (base) {
                         element_rebase_model(clone, rvs.block, rvs.list+'.'+index)
                         el(clone).update_bindings_recursive()
 
-                        while(clone.children.length) element.append(clone.children[0])
+                        while(clone.children.length) element.appendChild(clone.firstChild)
                     })
                 }
                 regex.moustaches(
@@ -171,13 +171,13 @@ var Binder = function (base) {
         const create_html_elements_from_value = () => {
             const make_element = (html, parentTextNodeIndex) => {
                 let sub = document.createElement('sub')
-                sub.innerHTML = html
+                sub.innerHTML = html || ''
                 sub = sub.firstChild
                 sub.setAttribute(__prefix+'-tmp-text-node', parentTextNodeIndex)
                 return sub
             }
             html_counter++
-            element.childNodes.forEach((node, i) => {
+            Array.from(element.childNodes).forEach((node, i) => {
                 if (node.nodeName != '#text') return
                 let s = node.nodeValue
                 let next = node.nextSibling
@@ -220,15 +220,16 @@ var Binder = function (base) {
                 expression = prepare_expression(expression)
 
                 // console.log('replacer', template, expression)
+                let res = ''
                 try {
                     res = eval(expression)
                 } catch(e) {
-                    res = '' // template
+                    // res = template
                 }
                 return res
             }
 
-            element.childNodes.forEach((node, i) => {
+            Array.from(element.childNodes).forEach((node, i) => {
                 if (node.nodeName != '#text') return
                 if (!original.childNodes[i]) return
                 node.nodeValue = regex.moustaches(
@@ -283,7 +284,7 @@ var Binder = function (base) {
         const reset = () => {
             let original = binding.get_original_element(element)
             if (element.childNodes.length != original.childNodes.length) {
-                element.innerHTML = original.innerHTML
+                element.innerHTML = original.innerHTML || ''
                 /*
                 element.querySelectorAll('['+__prefix+'-tmp-text-node]').forEach(tmp => tmp.remove())
                 */
@@ -360,7 +361,7 @@ var Binder = function (base) {
     }
 
     const pub = {
-        reload: async (module, callback) => {
+        reload: async (module, callback, nonsync) => {
             let attr = __prefix+'-'+module
             let query = '['+attr+']'
             let res = false
@@ -369,10 +370,9 @@ var Binder = function (base) {
             }
             let es = Array.from(document.querySelectorAll(query))
             for (let i = 0; es && i < es.length; i++) {
-                element = es[i]
+                let element = es[i]
                 if (callback) {
-                    if (callback.constructor.name == 'AsyncFunction')
-                        await callback(element)
+                    if (nonsync) await callback(element)
                     else callback(element)
                 }
 
@@ -385,8 +385,8 @@ var Binder = function (base) {
         bind: (base, key, obj) => {
             // obj = obj || eval(key)
             const apply = (attr) => {
-                document.querySelectorAll('['+attr+']').forEach(element => {
-                    console.debug('Apply', attr, element.tagName, element.className)
+                Array.from(document.querySelectorAll('['+attr+']')).forEach(element => {
+                    // console.debug('Apply', attr, element.tagName, element.className)
                     el(element).set_value_of_binding()
                 })
             }
@@ -444,8 +444,8 @@ var Binder = function (base) {
         let found = false
         let value = args[args.length-1]
 
-        for (i = 0; i < args.length; i++) {
-            arg = args[i]
+        for (let i = 0; i < args.length; i++) {
+            let arg = args[i]
             if (sub[arg] == undefined) {
                 found = Array.isArray(value)
                 break
@@ -468,9 +468,9 @@ var Binder = function (base) {
 
         // console.log('TRANSLATE ARGS', args, value.length)
 
-        for (i = 0; i < value.length; i++) {
+        for (let i = 0; i < value.length; i++) {
             Object.keys(value[i]).some(k => {
-                v = value[i][k]
+                let v = value[i][k]
                 if (sub[k] == undefined) return true
                 // console.log('TRANSLATE PRE:', sub[k], v)
                 if (sub[k][v] == undefined) return false
